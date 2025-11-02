@@ -1,0 +1,124 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.1">
+  <style type="text/css">
+    body {background-color: #0b0d10}
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #f6f9fb; -webkit-text-stroke: #f6f9fb}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 20.0px 'Helvetica Neue'; color: #60e5a8; -webkit-text-stroke: #60e5a8}
+    p.p3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 44.0px '.AppleSystemUIFontMonospaced'; color: #8893a3; -webkit-text-stroke: #8893a3; min-height: 52.0px}
+    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; -webkit-text-stroke: #000000; background-color: #f6f9fb; min-height: 15.0px}
+    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; text-align: center; font: 14.0px 'Helvetica Neue'; color: #8893a3; -webkit-text-stroke: #8893a3}
+    span.s1 {font-kerning: none}
+
+    /* typing state styles */
+    .char { opacity: 0.9; padding: 0 2px; }
+    .char.past.correct { color: #60e5a8; opacity: 1; }
+    .char.past.incorrect { color: #fb7185; opacity: 1; }
+    .char.current { color: #f6f9fb; border-bottom: 2px solid rgba(246,249,251,0.25); }
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1"><b>Numbers &amp; Symbols</b></span></p>
+<p class="p2" id="wpm"><span class="s1"><b>WPM: 0</b></span></p>
+<p class="p3" id="line"><span class="s1"></span><br></p>
+<p class="p4"><span class="s1"></span><br></p>
+<p class="p5"><span class="s1">Type the visible characters. Pool: 0-9 and their symbols (! @ # $ % ^ &amp; * ( )) — infinite stream. Backspace allowed to correct.</span></p>
+<script type="text/javascript">
+(function() {
+  var POOL = ['1','2','3','4','5','6','7','8','9','0','!','@','#','$','%','^','&','*','(',')'];
+  var VISIBLE = 60, PREFILL = 300, THRESH = 120, APPEND = 300;
+
+  var buffer = [], state = []; // 'untyped'|'correct'|'incorrect'
+  var idx = 0, correct = 0, started = false, startTime = 0, wpmTimer = null;
+
+  var lineEl = document.getElementById('line');
+  var wpmEl  = document.getElementById('wpm');
+
+  function rand(){ return POOL[Math.floor(Math.random()*POOL.length)]; }
+  function push(n){ for(var i=0;i<n;i++){ buffer.push(rand()); state.push('untyped'); } }
+  function ensure(){ if(buffer.length - idx < THRESH) push(APPEND); }
+
+  function render(){
+    var half = Math.floor(VISIBLE/2);
+    var start = idx < half ? 0 : idx - half;
+    var end = start + VISIBLE;
+    var html = '';
+    for(var g=start; g<end && g<buffer.length; g++){
+      var cls = 'char';
+      if(g < idx) cls += ' past ' + (state[g] === 'correct' ? 'correct' : 'incorrect');
+      else if(g === idx) cls += ' current';
+      html += '<span class="'+cls+'">'+ buffer[g] +'</span>';
+    }
+    lineEl.innerHTML = html;
+  }
+
+  function setWPMText(text){
+    if(wpmEl) wpmEl.innerHTML = '<span class="s1"><b>'+text+'</b></span>';
+  }
+
+  function updateWPM(){
+    if(!started){ setWPMText('WPM: 0'); return; }
+    var elapsedMin = (Date.now() - startTime) / 60000;
+    var wpm = elapsedMin > 0 ? (correct / 5) / elapsedMin : 0;
+    setWPMText('WPM: ' + Math.round(wpm));
+  }
+
+  function onKey(e){
+    var k = e.key || e.keyCode;
+    if(k === 'Shift' || k === 'Alt' || k === 'AltGraph' || k === 'Meta' || k === 'Control') return;
+    if(e.preventDefault) e.preventDefault();
+
+    if(!started && k !== 'Backspace'){
+      started = true;
+      startTime = Date.now();
+      if(!wpmTimer) wpmTimer = setInterval(updateWPM, 250);
+    }
+
+    if(k === 'Backspace'){
+      if(idx > 0){
+        idx--;
+        if(state[idx] === 'correct') correct = Math.max(0, correct - 1);
+        state[idx] = 'untyped';
+        ensure(); render(); updateWPM();
+      }
+      return;
+    }
+
+    var entered = typeof k === 'string' ? k : String.fromCharCode(k || 0);
+    if(!entered) return;
+
+    var expected = buffer[idx];
+    if(entered === expected){ state[idx] = 'correct'; correct++; }
+    else { state[idx] = 'incorrect'; }
+
+    idx++;
+    ensure();
+    render();
+    updateWPM();
+  }
+
+  function init(){
+    buffer.length = 0; state.length = 0;
+    idx = 0; correct = 0; started = false; startTime = 0;
+    push(PREFILL);
+    render();
+    updateWPM();
+
+    if(window.addEventListener) window.addEventListener('keydown', onKey, false);
+    else if(window.attachEvent) window.attachEvent('onkeydown', onKey);
+
+    if(window.addEventListener) window.addEventListener('beforeunload', function(){
+      if(wpmTimer) clearInterval(wpmTimer);
+    }, false);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
